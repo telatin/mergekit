@@ -25,10 +25,11 @@ do
 	B=$(basename "$R1" | cut -f1 -d_);
 	echo FOR=$R1
 	echo REV=$R2
-	flash   -m $MIN -M $MAX -d "$OUT" -o "$B.flash" "$R1" "$R2"
-	mv "$OUT/$B.flash.extendedFrags.fastq" "$OUT/$B.flash.fq"
-	NGmerge -m $MIN -o "$OUT/$B.ngmerge.fq" -1 "$R1" -2 "$R2"
-	vsearch --fastq_mergepairs "$R1" --reverse "$R2" --fastqout "$OUT/$B.vsearch.fq"
+	flash   -m $MIN -M $MAX -d "$OUT" -o "FL.$B" "$R1" "$R2"
+	rm "$OUT/FL.$B.not"*
+	NGmerge -m $MIN -o "$OUT/NG.$B.fq" -1 "$R1" -2 "$R2"
+	vsearch --fastq_mergepairs "$R1" --reverse "$R2" --fastqout "$OUT/VS.$B.fq"
+	usearch --fastq_mergepairs "$R1" --fastqout "$OUT/US.$B.fq"
 done
 
 gzip "$DATA_DIR"/*q
