@@ -139,7 +139,7 @@ foreach my $r (keys %regions_counter) {
 	$regions_counter{$r} /= ($query->{counter} - 1) if ($query->{counter} > 1);
 }
 $output{global_seqs}{hit_ratios} = \%regions_counter;
-
+$output{global_seqs}{parsed_seqs} = $query->{counter} - 1;
 if ($opt_json) {
   my $json = JSON::PP->new->ascii->allow_nonref;
   $json = JSON::PP->new->ascii->pretty->allow_nonref if ($opt_pretty);
