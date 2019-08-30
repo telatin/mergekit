@@ -11,7 +11,8 @@ use Local::Align qw(align);
 use Data::Dumper;
 use File::Basename;
 use JSON::PP;
-
+our $last = 0;
+$SIG{INT} = sub { print STDERR "Quitting...\n"; $last++; exit if ($last > 1); };
 my $usage=<<END;
    USAGE:
      16S.pl [options] file.fa
@@ -23,17 +24,20 @@ my $usage=<<END;
                           (0-100), if below the coverage percentage will
                           be reported
 
+     -v, --verbose        Prints progess and verbose output
+
      -j, --json           Prints output in JSON format
      -p                   Pretty print JSON
      -f                   Add parameters to JSON
 END
 
-my ($opt_debug, $opt_max_seq, $opt_json, $opt_pretty, $opt_full);
+my ($opt_debug, $opt_max_seq, $opt_json, $opt_pretty, $opt_full, $opt_verbose);
 my $opt_ths = 80;
-my $opt_min_score = 100;
+my $opt_min_score = 40;
 my %output;
 
 my $_opt = GetOptions(
+	'v|verbose'      => \$opt_verbose,
 	'd|debug'        => \$opt_debug,
 	't|threshold=f'  => \$opt_ths,
 	'm|max=i'        => \$opt_max_seq,
@@ -70,10 +74,22 @@ if ($opt_full) {
 
 my $query = FASTX::Reader->new( {filename => "$ARGV[0]" });
 
+say STDERR "Opening $ARGV[0]..." if $opt_verbose;
+
 while (my $seq = $query->getRead() )  {
-	last if (defined $opt_max_seq and $query->{counter} > $opt_max_seq);
-	
-	my ($top, $middle, $bottom, $score) = align($seq->{seq}, $reference_16S);
+	if ($opt_verbose)  {
+		print STDERR '#';
+		print STDERR "\n" unless ($query->{counter} % 50);
+	}
+
+	last if (defined $opt_max_seq and $query->{counter} > $opt_max_seq or $last);
+	my ($top, $middle, $bottom, $score)     = align($seq->{seq}, $reference_16S);
+	my ($top2, $middle2, $bottom2, $score2) = align( Local::Align->rc($seq->{seq}), $reference_16S);
+	($top, $middle, $bottom, $score) =  ($top2, $middle2, $bottom2, $score2) if ($score2 > $score);
+	if ($opt_debug) {
+		say join("\n", $top, $middle, $bottom);
+	}	
+
 	my $start = 0;
 	my $len = 0;
 	my $end = 0;
