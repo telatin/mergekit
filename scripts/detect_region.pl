@@ -59,6 +59,8 @@ my %regions = (
 	V8   => [1435, 1465],
 );
 
+my %regions_counter = ();
+
 my $reference_16S = load_ref();
 
 if ($opt_full) {
@@ -70,6 +72,7 @@ my $query = FASTX::Reader->new( {filename => "$ARGV[0]" });
 
 while (my $seq = $query->getRead() )  {
 	last if (defined $opt_max_seq and $query->{counter} > $opt_max_seq);
+	
 	my ($top, $middle, $bottom, $score) = align($seq->{seq}, $reference_16S);
 	my $start = 0;
 	my $len = 0;
@@ -98,33 +101,45 @@ while (my $seq = $query->getRead() )  {
 		my $span = 0;
 		if ( ($s > $start) and ($e < $end) ) {
 			 #included
+			$regions_counter{$region}++;
 			push(@r, "$region");
-			$span = 100;
+			$span = 100.00;
+
 		} elsif (( $e > $start ) and ( $s < $start) ) {
 			$span =  100 * ( $e - $start ) / $l ; 
 			if ($span > $opt_ths) {
 				push(@r, "$region");
+				$regions_counter{$region}++;
 			} else {
 				push(@r, "$region($span)");
 			}
+
 		} elsif ( ( $s < $end ) and ( $e > $end ) ) {
 			$span =  100 * ( $end - $s ) / $l ; 
 			if ($span > $opt_ths) {
+				$regions_counter{$region}++;
 				push(@r, "$region($span)");
 			}
 		}
-		$data->{region}->{$region} = sprintf("%.2f", $span) + 0 if ($span);
+		$data->{regions}->{$region} = sprintf("%.2f", $span) + 0 if ($span);
 
 	}
 	if (not $opt_json) {
 		say $seq->{name}, "\t", "regions=",join(",", @r), "\tregion=$start-$end;score=$score";
 		say join("\n", $top, $middle, $bottom) if ($opt_debug);
 	} else {
-		
+		$data->{detected_regions} = join(',', @r);		
 		$output{input_seqs}{ $seq->{name} } = $data;
+
 	}
 
 }
+
+foreach my $r (keys %regions_counter) {
+	$regions_counter{$r} /= ($query->{counter} - 1) if ($query->{counter} > 1);
+}
+$output{global_seqs}{hit_ratios} = \%regions_counter;
+
 if ($opt_json) {
   my $json = JSON::PP->new->ascii->allow_nonref;
   $json = JSON::PP->new->ascii->pretty->allow_nonref if ($opt_pretty);
