@@ -23,15 +23,13 @@ my $usage=<<END;
 
 END
 
-my ($opt_for, $opt_rev, $opt_debug, $opt_max_reads, $opt_sort_files, $opt_verbose);
+my ($opt_for, $opt_rev, $opt_debug, $opt_max_reads);
 
 my $_opt = GetOptions(
 	'm|max-reads=i'  => \$opt_max_reads,
 	'1|forward=s'    => \$opt_for,
 	'2|reverse=s'    => \$opt_rev,
-  'sort-files'     => \$opt_sort_files,
 	'd|debug'        => \$opt_debug,
-  'v|verbose'      => \$opt_verbose,
 );
 
 if (not defined $opt_for and not defined $ARGV[0]) {
@@ -56,31 +54,21 @@ die " Unable to locate reverse file <$opt_rev>.\n" unless (-e "$opt_rev");
 say STDERR " * Loading $opt_for, $opt_rev" if ($opt_debug);
 my $reads = get_paired_reads($opt_for, $opt_rev);
 
-my @files = @ARGV;
-@files = sort @ARGV if (defined $opt_sort_files);
-
-foreach my $f (@files) {
-	say STDERR " * Preloading $f" if ($opt_verbose);
+foreach my $f (@ARGV) {
+	say STDERR " * Preloading $f" if ($opt_debug);
 	add_read_names($reads, $f);
 }
 
 my %stats;
 my $c = 0;
-say STDERR "\r Done.\n" if ($opt_verbose);
+say STDERR "\r Done.\n";
 
 foreach my $read (sort { $reads->{$a}->{id} <=> $reads->{$b}->{id} } keys %{ $reads }) {
-
-  my $data;
-  $data->{read} = $read;
 	$c++;
 	my $merged = 0;
 	my $mergers = '';
 	foreach my $f (@ARGV) {
-    $data->{"merged_$f"} = 0;
-
-
 		if (defined $reads->{$read}->{$f}) {
-      $data->{"merged_$f"} = 1;
 			$mergers .= basename($f).',';
 			$merged++;
 		}
@@ -89,18 +77,18 @@ foreach my $read (sort { $reads->{$a}->{id} <=> $reads->{$b}->{id} } keys %{ $re
 
 	my $rev = Local::Align->rc( $reads->{$read}->{R2}->{seq} );
 	my $for = $reads->{$read}->{R1}->{seq};
-
+	
 	my ($top, $middle, $bottom, $score) = align($for, $rev);
 	my $overlap = length($for) + length($rev) - length($top);
 	my $fract   = sprintf("%.2f", $score/$overlap);
 
-	say STDERR  qq($c:\@$read\tid=$reads->{$read}->{id}\tmerged=$merged\tscore=$fract\t$mergers) if ($opt_verbose);
+	say color('blue on_white'), qq($c:\@$read\tid=$reads->{$read}->{id}"), color('reset'), color('bold'),qq(\tmerged=$merged\tscore=$fract\t$mergers);
 
 	my @names;
 	my @qual;
 	my @seqs;
-
-
+	
+	
 
 	foreach my $f (@ARGV){
 
@@ -109,23 +97,30 @@ foreach my $read (sort { $reads->{$a}->{id} <=> $reads->{$b}->{id} } keys %{ $re
 	  push(@seqs,  $reads->{$read}->{$f}->{seq});
 	  push(@qual, $reads->{$read}->{$f}->{qual});
 
+	  #say color('yellow'), ">$f ";
+
+ 	  #my ($top1, $middle1, $bottom1, $score1) = align($for, $reads->{$read}->{$f}->{seq});
+	  #my ($top2, $middle2, $bottom2, $score2) = align($reads->{$read}->{$f}->{seq}, $rev);
+		# Top_ 		aligned R1
+		# Bottom2_ 	aligned R2
+	 # print join("\n", "> $top1", "  $middle1", "* $bottom1", "  $middle2", "< $bottom2", "\n") if ($fract > 0);
 
 	}
 	my $last_index = $#names;
 	next if ($last_index < 1);
 
 	#my ($top, $middle, $bottom, $score) = align($for, $rev);
-	print STDERR join("\n", "   $top", "   $middle", "   $bottom",  "\n") if ($fract > 0 and $opt_verbose);
-	say STDERR color('green'), "   $seqs[0]" if ($opt_verbose);
+	print join("\n", "   $top", "   $middle", "   $bottom",  "\n") if ($fract > 0);
+	say color('green'), "   $seqs[0]";
 
-	say STDERR color('cyan'), substr($names[0], 0, 2), ' ', $qual[0] if ($opt_verbose);
+	say color('cyan'), substr($names[0], 0, 2), ' ', $qual[0];
 	for (my $i = 1; $i <= $last_index; $i++) {
 		if ($seqs[0] ne $seqs[$i] and ($names[$i] ne 'R1.fq')) {
-		  print STDERR "WARNING: $names[0] and $names[$i] are different:\n";
+		  print "WARNING: $names[0] and $names[$i] are different:\n";
 		  my ($top, $middle, $bottom, $score) = align($seqs[0], $seqs[$i]);
-		  print STDERR join("\n", "$top", "$middle", "$bottom",  "\n") if ($fract > 0 and $opt_verbose);
+		  print join("\n", "$top", "$middle", "$bottom",  "\n") if ($fract > 0);
 		} else {
-		  print STDERR substr($names[$i], 0, 2), ' ';
+		  print substr($names[$i], 0, 2), ' ';
 		  for (my $c = 0; $c < length($qual[$i]); $c++) {
 			my $char    = substr($qual[$i], $c, 1);
 			my $topchar = substr($qual[0], $c, 1);
@@ -138,14 +133,12 @@ foreach my $read (sort { $reads->{$a}->{id} <=> $reads->{$b}->{id} } keys %{ $re
 			} else {
 				$color = 'white on_red';
 			}
-			print STDERR color($color), "$char" if ($opt_verbose);
+			print color($color), "$char";
 		  }
-		  print STDERR "\n" if ($opt_verbose);
+		  print "\n";
 		}
-    print STDERR color('reset'), '' if ($opt_verbose);
-
+		
 	}
-  say Dumper $data;
 }
 
 say Dumper \%stats;
@@ -161,12 +154,12 @@ sub get_paired_reads {
 		die "Sequence name mismatch in R1/R2: ", $read->{name}, ' != ', $rev->{name}, "\n" if ($read->{name} ne $rev->{name} );
 		$counter++;
 		$hash{ $read->{name} }{id} = $counter;
-
+		
 		$hash{ $read->{name} }{R1}->{seq} = $read->{seq};
 		$hash{ $read->{name} }{R1}->{qual} = $read->{qual};
 		$hash{ $read->{name} }{R2}->{seq} = $rev->{seq};
 		$hash{ $read->{name} }{R2}->{qual} = $rev->{qual};
-
+		
 		last if (defined $opt_max_reads and $counter > $opt_max_reads);
 	}
 	say STDERR "$reader->{counter} reads in $f" if ($opt_debug);
@@ -180,7 +173,7 @@ sub add_read_names {
 		if ( defined $ref->{ $read->{name} } ) {
 			$ref->{ $read->{name} }->{$filename}->{seq}  = $read->{seq};
 			$ref->{ $read->{name} }->{$filename}->{qual} = $read->{qual};
-		}
+		}	
 	}
 }
 

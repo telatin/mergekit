@@ -7,7 +7,7 @@ set -euxo pipefail
 command -v NGmerge || conda install -y -c bioconda ngmerge
 command -v flash   || conda install -y -c bioconda flash
 command -v vsearch || conda install -y -c bioconda vmerge
-
+perl -MFASTX::Reader -e 1 || conda install -y -c bioconda perl-fastx-reader
 gunzip "$DATA_DIR"/*.gz
 
 OUT="$SCRIPT_DIR/out";

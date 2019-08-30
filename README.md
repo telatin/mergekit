@@ -8,6 +8,12 @@ NGS Bioinformatics / Toolkit to assist overlapping paired-end reads merging
 
 **Development script not for production**
 
+check_merge will analyze a set of at least 2 output of a pair end merger (e.g. FLASH and VSEARCH), together with the unmerged reads, allowing to check
+the alignment and the quality scores produced.
+
+![Example output](img/mergekit.png)
+
+
 ### merge.sh
 
 Script that produces the merged files starting from the FASTQ pairs in the `datasets` directory. 
