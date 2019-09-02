@@ -13,28 +13,34 @@ use File::Basename;
 use JSON::PP;
 our $last = 0;
 $SIG{INT} = sub { print STDERR "Quitting...\n"; $last++; exit if ($last > 1); };
+
+
+my $opt_max_seq = 10;
+my $opt_ths = 80;
+my $opt_min_score = 40;
+my ($opt_debug, $opt_json, $opt_nopretty, $opt_full, $opt_verbose);
+my %output;
+
 my $usage=<<END;
    USAGE:
      16S.pl [options] file.fa
 
    OPTIONS:
-     -m, --max  INT       Read 'm' number of sequences and then stop
+     -m, --max  INT        Read 'm' number of sequences and then stop [$opt_max_seq]
 
-     -t, --thr  FLOAT     Percentage of coverage of target region
-                          (0-100), if below the coverage percentage will
-                          be reported
+     -t, --thr  FLOAT      Percentage of coverage of target region
+                           (0-100), if below the coverage percentage will
+                           be reported [$opt_ths]
+			   
+     -s, --min-score FLOAT Minimum alignment score [$opt_min_score]
+			 
 
-     -v, --verbose        Prints progess and verbose output
+     -v, --verbose         Prints progess and verbose output
 
-     -j, --json           Prints output in JSON format
-     -p                   Pretty print JSON
-     -f                   Add parameters to JSON
+     -j, --json            Prints output in JSON format (pretty print)
+     -c, --compact         Compact JSON (i.e. disable pretty print)
+     -f, --full            Add running parameters to JSON output
 END
-
-my ($opt_debug, $opt_max_seq, $opt_json, $opt_pretty, $opt_full, $opt_verbose);
-my $opt_ths = 80;
-my $opt_min_score = 40;
-my %output;
 
 my $_opt = GetOptions(
 	'v|verbose'      => \$opt_verbose,
@@ -43,7 +49,7 @@ my $_opt = GetOptions(
 	'm|max=i'        => \$opt_max_seq,
 	's|min-score=f'  => \$opt_min_score,
 	'j|json'         => \$opt_json,
-	'p|pp'           => \$opt_pretty,
+	'c|compact-json' => \$opt_nopretty,
 	'f|full'         => \$opt_full,
 );
 
@@ -156,15 +162,17 @@ foreach my $r (keys %regions_counter) {
 }
 $output{global_seqs}{hit_ratios} = \%regions_counter;
 $output{global_seqs}{parsed_seqs} = $query->{counter} - 1;
+
 if ($opt_json) {
   my $json = JSON::PP->new->ascii->allow_nonref;
-  $json = JSON::PP->new->ascii->pretty->allow_nonref if ($opt_pretty);
+  $json = JSON::PP->new->ascii->pretty->allow_nonref if (not $opt_nopretty);
   say $json->encode( sort \%output );
 }
 
 
 
 sub load_ref   {
+ # TODO: Allow for user-supplied reference as an option
  return 'AAATTGAAGAGTTTGATCATGGCTCAGATTGAACGCTGGCGGCAGGCCTAACACATGCAAGTCGAACGGTAACAGGAAGCAGCTTGCTGCTTCGCTGACGAGTGGCGGACGGGTGAGTAATGTCTGGGAAGCTGCCTGATGGAGGGGGATAACTACTGGAAACGGTAGCTAATACCGCATAATGTCGCAAGACCAAAGAGGGGGACCTTCGGGCCTCTTGCCATCGGATGTGCCCAGATGGGATTAGCTTGTTGGTGGGGTAACGGCTCACCAAGGCGACGATCCCTAGCTGGTCTGAGAGGATGACCAGCCACACTGGAACTGAGACACGGTCCAGACTCCTACGGGAGGCAGCAGTGGGGAATATTGCACAATGGGCGCAAGCCTGATGCAGCCATGCCGCGTGTATGAAGAAGGCCTTCGGGTTGTAAAGTACTTTCAGCGGGGAGGAAGGGAGTAAAGTTAATACCTTTGCTCATTGACGTTACCCGCAGAAGAAGCACCGGCTAACTCCGTGCCAGCAGCCGCGGTAATACGGAGGGTGCAAGCGTTAATCGGAATTACTGGGCGTAAAGCGCACGCAGGCGGTTTGTTAAGTCAGATGTGAAATCCCCGGGCTCAACCTGGGAACTGCATCTGATACTGGCAAGCTTGAGTCTCGTAGAGGGGGGTAGAATTCCAGGTGTAGCGGTGAAATGCGTAGAGATCTGGAGGAATACCGGTGGCGAAGGCGGCCCCCTGGACGAAGACTGACGCTCAGGTGCGAAAGCGTGGGGAGCAAACAGGATTAGATACCCTGGTAGTCCACGCCGTAAACGATGTCGACTTGGAGGTTGTGCCCTTGAGGCGTGGCTTCCGGAGCTAACGCGTTAAGTCGACCGCCTGGGGAGTACGGCCGCAAGGTTAAAACTCAAATGAATTGACGGGGGCCCGCACAAGCGGTGGAGCATGTGGTTTAATTCGATGCAACGCGAAGAACCTTACCTGGTCTTGACATCCACGGAAGTTTTCAGAGATGAGAATGTGCCTTCGGGAACCGTGAGACAGGTGCTGCATGGCTGTCGTCAGCTCGTGTTGTGAAATGTTGGGTTAAGTCCCGCAACGAGCGCAACCCTTATCCTTTGTTGCCAGCGGTCCGGCCGGGAACTCAAAGGAGACTGCCAGTGATAAACTGGAGGAAGGTGGGGATGACGTCAAGTCATCATGGCCCTTACGACCAGGGCTACACACGTGCTACAATGGCGCATACAAAGAGAAGCGACCTCGCGAGAGCAAGCGGACCTCATAAAGTGCGTCGTAGTCCGGATTGGAGTCTGCAACTCGACTCCATGAAGTCGGAATCGCTAGTAATCGTGGATCAGAATGCCACGGTGAATACGTTCCCGGGCCTTGTACACACCGCCCGTCACACCATGGGAGTGGGTTGCAAAAGAAGTAGGTAGCTTAACCTTCGGGAGGGCGCTTACCACTTTGTGATTCATGACTGGGGTGAAGTCGTAACAAGGTAACCGTAGGGGAACCTGCGGTTGGATCACCTCCTTA';
 }
 
